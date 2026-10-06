@@ -6,15 +6,17 @@
 <title>Программируйте с нами</title>
 <style>
   :root {
-    --bg: #070a1c;
-    --text: #eef1ff;
-    --accent: #ffc83d;
-    --accent-text: #1a1400;
+    --bg-top: #0a0e16;
+    --bg-bottom: #151c2a;
+    --text: #e8edf5;
+    --accent: #3d6fa3;
+    --accent-hover: #4d82ba;
+    --accent-text: #ffffff;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body {
-    background: radial-gradient(ellipse at 50% 40%, #121a45 0%, var(--bg) 70%);
+    background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
     color: var(--text);
     font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
     overflow: hidden;
@@ -44,22 +46,22 @@
     font-weight: 700;
     letter-spacing: 0.01em;
     line-height: 1.1;
-    text-shadow: 0 0 40px rgba(120, 150, 255, 0.45);
   }
   .btn {
     pointer-events: auto;
     display: inline-block;
     padding: 16px 44px;
-    border-radius: 999px;
+    border-radius: 6px;
     background: var(--accent);
     color: var(--accent-text);
-    font-size: 1.15rem;
-    font-weight: 700;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     text-decoration: none;
-    box-shadow: 0 0 0 0 rgba(255, 200, 61, 0.5);
-    transition: transform .2s, box-shadow .2s;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transition: background .2s, transform .2s;
   }
-  .btn:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 0 30px 4px rgba(255, 200, 61, 0.45); }
+  .btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
   .btn:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
 </style>
 </head>
@@ -67,7 +69,6 @@
 <canvas id="sky"></canvas>
 <main>
   <h1>Программируйте с нами</h1>
-  <!-- Замените href на вашу ссылку: форму, Telegram, почту и т.д. -->
   <a class="btn" href="https://t.me/MidTeamLead">Записаться</a>
 </main>
 
@@ -79,8 +80,8 @@
 
   var RADIUS = 150;      // радиус влияния мыши, px
   var PUSH = 0.9;        // сила отталкивания
-  var RETURN = 0.02;     // как быстро звезда возвращается на место
-  var FRICTION = 0.9;
+  var FRICTION = 0.94;   // затухание отталкивания
+  var STAR_RGB = '184,196,214'; // цвет звёзд (серо-голубой)
 
   var stars = [];
   var mouse = { x: -9999, y: -9999 };
@@ -93,15 +94,18 @@
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    var count = Math.round((w * h) / 4500);
+    var count = Math.round((w * h) / 5000);
     stars = [];
     for (var i = 0; i < count; i++) {
-      var x = Math.random() * w, y = Math.random() * h;
+      var r = Math.random() * 1.4 + 0.4;
       stars.push({
-        hx: x, hy: y, x: x, y: y, vx: 0, vy: 0,
-        r: Math.random() * 1.6 + 0.4,
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: 0, vy: 0,                 // импульс от мыши
+        fall: 0.12 + r * 0.14,        // скорость падения (крупные чуть быстрее)
+        r: r,
         phase: Math.random() * Math.PI * 2,
-        speed: Math.random() * 0.02 + 0.005
+        twinkle: Math.random() * 0.02 + 0.005
       });
     }
   }
@@ -119,20 +123,24 @@
           s.vx += (dx / dist) * force;
           s.vy += (dy / dist) * force;
         }
-        s.vx += (s.hx - s.x) * RETURN;
-        s.vy += (s.hy - s.y) * RETURN;
         s.vx *= FRICTION;
         s.vy *= FRICTION;
         s.x += s.vx;
-        s.y += s.vy;
-        s.phase += s.speed;
+        s.y += s.fall + s.vy;
+        s.phase += s.twinkle;
+
+        // ушла вниз — появляется сверху; вбок — с другой стороны
+        if (s.y > h + 5) { s.y = -5; s.x = Math.random() * w; s.vx = s.vy = 0; }
+        if (s.y < -50) { s.y = h + 5; }
+        if (s.x < -10) s.x = w + 10;
+        if (s.x > w + 10) s.x = -10;
       }
 
-      var glow = 0.55 + 0.45 * Math.sin(s.phase);
+      var glow = 0.5 + 0.35 * Math.sin(s.phase);
       var near = Math.max(0, 1 - Math.hypot(s.x - mouse.x, s.y - mouse.y) / RADIUS);
       ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r + near * 1.2, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(' + (230 + near * 25) + ',' + (235 - near * 30) + ',255,' + (glow * 0.85 + near * 0.15) + ')';
+      ctx.arc(s.x, s.y, s.r + near * 1.0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(' + STAR_RGB + ',' + Math.min(1, glow * 0.8 + near * 0.2) + ')';
       ctx.fill();
     }
     requestAnimationFrame(draw);
